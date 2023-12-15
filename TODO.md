@@ -2,7 +2,7 @@
 
 ## Pieces
 
-## Essential
+### Essential
 - [x] Data
 - [x] Movement
 - [x] [Rotation](https://tetris.wiki/Super_Rotation_System)
@@ -11,8 +11,7 @@
 - [x] [DAS](https://tetris.wiki/DAS)
 - [ ] [Lock delay](https://tetris.wiki/Lock_delay)
 
-## Nice to have
-
+### Nice to have
 - [x] [IRS](https://tetris.wiki/Rotate)
 - [x] [ARE](https://tetris.wiki/ARE)
 - [ ] [Mihara's conspiracy](https://tetris.wiki/Arika_Rotation_System)
