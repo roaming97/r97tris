@@ -214,6 +214,8 @@ void lock_piece(Piece *piece);
 // Checks if a line has been cleared.
 void check_line(unsigned int y);
 
+#define DAS_FRAMES 12
+#define ARE_FRAMES 30
 
 typedef struct GameState
 {
@@ -222,11 +224,14 @@ typedef struct GameState
 	unsigned char *board;
 	uint64_t ticks;
 	unsigned int level;
+	unsigned int score;
 	unsigned int gravity;
 	unsigned int tpu; // ticks per update
 	unsigned int ftr; // fall tickrate
 	unsigned int dhf; // direction hold frames
-	unsigned int das; // Delayed Auto Shift, hz before autorepeat
+	unsigned int das; // Delayed Auto Shift, frames before autorepeat
+	unsigned int are; // spawn delay, ticks are copied into this variable so it can be compared against `ARE_FRAMES` 
+	bool game_over;
 } GameState;
 
 void init_game_state();

@@ -127,12 +127,12 @@ void draw_line(Point from, Point to, unsigned int color)
     }
 }
 
-void draw_rectangle(int x1, int y1, int x2, int y2, unsigned int color, bool outline)
+void draw_rectangle(Point from, Point to, unsigned int color, bool outline)
 {
-    const Point A = (Point){x1, y1};
-    const Point B = (Point){x2, y1};
-    const Point C = (Point){x2, y2};
-    const Point D = (Point){x1, y2};
+    const Point A = (Point){from.x, from.y};
+    const Point B = (Point){to.x, from.y};
+    const Point C = (Point){to.x, to.y};
+    const Point D = (Point){from.x, to.y};
     if (outline)
     {
         draw_line(A, B, color);
@@ -142,8 +142,8 @@ void draw_rectangle(int x1, int y1, int x2, int y2, unsigned int color, bool out
     }
     else
     {
-        for (int rx = x1; rx < x2; rx++)
-            for (int ry = y1; ry < y2; ry++)
+        for (int rx = from.x; rx < to.x; rx++)
+            for (int ry = from.y; ry < to.y; ry++)
                 draw_pixel(rx, ry, color);
     }
 }
@@ -275,11 +275,15 @@ void init_game_state()
     init_queue();
 
     game_state->piece = new_piece(-1);
+    game_state->game_over = false;
     game_state->ticks = 0;
     game_state->gravity = 1;
     game_state->ftr = fps;
     game_state->tpu = 1;
-    game_state->das = 10;
+    game_state->level = 0;
+    game_state->score = 0;
+    game_state->das = DAS_FRAMES;
+    game_state->are = game_state->ticks;
 }
 
 bool every_n_frames(unsigned int frames)
@@ -292,13 +296,18 @@ void draw_board()
     float X_OFFSET = floor(width * 0.5 - BOARD_WIDTH * CELL_SIZE * 0.5);
     float Y_OFFSET = floor(height * 0.5 - BOARD_HEIGHT * CELL_SIZE * 0.5);
     // Draw board pane
-    draw_rectangle(X_OFFSET, Y_OFFSET, X_OFFSET + BOARD_WIDTH * CELL_SIZE, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE, 0, false);
+    draw_rectangle(
+        (Point){X_OFFSET, Y_OFFSET},
+        (Point){X_OFFSET + BOARD_WIDTH * CELL_SIZE, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE},
+        0, false);
     // Draw piece
     if (game_state->piece != NULL)
     {
         Piece *p = game_state->piece;
         for (int b = 0; b < 4; b++)
         {
+            if (p->blocks[b].collide)
+                break;
             unsigned int bx = p->blocks[b].x;
             unsigned int by = p->blocks[b].y;
             unsigned int color = PIECE_COLORS[p->blocks[b].piece];
@@ -313,10 +322,9 @@ void draw_board()
     }
     // Draw queue pane
     draw_rectangle(
-        X_OFFSET + BOARD_WIDTH * CELL_SIZE + 32, 
-        Y_OFFSET, X_OFFSET + BOARD_WIDTH * CELL_SIZE + 128, 
-        Y_OFFSET + BOARD_HEIGHT * CELL_SIZE, 0xFFFFFF, true
-    );
+        (Point){X_OFFSET + BOARD_WIDTH * CELL_SIZE + 32, Y_OFFSET},
+        (Point){X_OFFSET + BOARD_WIDTH * CELL_SIZE + 128, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE},
+        0xFFFFFF, true);
     // Draw piece queue
     for (int q = 1; q < QUEUE_SIZE; q++)
     {
@@ -328,9 +336,8 @@ void draw_board()
             unsigned int color = PIECE_COLORS[next->blocks[n].piece];
 
             Point draw_position = (Point){
-                X_OFFSET + (BOARD_WIDTH * CELL_SIZE) + nx * CELL_SIZE, 
-                Y_OFFSET + (q - 1) * BOARD_HEIGHT * 3 + ny * CELL_SIZE + CELL_SIZE
-            };
+                X_OFFSET + (BOARD_WIDTH * CELL_SIZE) + nx * CELL_SIZE,
+                Y_OFFSET + (q - 1) * BOARD_HEIGHT * 3 + ny * CELL_SIZE + CELL_SIZE};
 
             draw_texture(
                 tangram.textures.spritesheet,
@@ -398,7 +405,11 @@ void draw_board()
             }
         }
     }
-    draw_rectangle(X_OFFSET, Y_OFFSET, X_OFFSET + BOARD_WIDTH * CELL_SIZE, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE, 0xFFFFFF, true);
+    // Draw border stroke
+    draw_rectangle(
+        (Point){X_OFFSET, Y_OFFSET},
+        (Point){X_OFFSET + BOARD_WIDTH * CELL_SIZE, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE},
+        0xFFFFFF, true);
 }
 
 Block new_block(unsigned short data)
@@ -425,7 +436,7 @@ Piece *new_piece(int idx)
         index = new_index(SDL_GetTicks() + 0xb297afff);
         update_queue(index);
         index = game_state->queue[0];
-        game_state->dhf = 0;
+        // game_state->dhf = 0;
         if (tangram.keystate != NULL)
         {
             if (key_is_down(SDLK_z))
@@ -494,10 +505,7 @@ Piece *new_piece(int idx)
     if (idx == -1)
     {
         if (initial_dir != 0)
-        {
-            rotate_piece(p, initial_dir);
             play_sound(SOUND_IRS, 0.9f);
-        }
 
         play_sound(game_state->queue[1], 1.0f);
 
@@ -642,6 +650,7 @@ void lock_piece(Piece *piece)
     unsigned int y2 = piece->blocks[1].y;
     for (int i = 0; i < 4; i++)
     {
+        piece->blocks[i].collide = true;
         int px = piece->blocks[i].x;
         int py = piece->blocks[i].y;
         if (py < y1)
@@ -659,14 +668,15 @@ void lock_piece(Piece *piece)
         check_line(y);
 
     game_state->level++;
-    game_state->piece = new_piece(-1);
+    game_state->are = game_state->ticks;
 }
 
 void check_line(unsigned int y)
 {
     if (y <= 0)
     {
-        restart_game();
+        game_state->game_over = true;
+        BASS_ChannelStop(tangram.music);
         return;
     }
 
@@ -684,10 +694,13 @@ void check_line(unsigned int y)
     for (int dy = y; dy > 0; dy--)
         for (int dx = 0; dx < BOARD_WIDTH; dx++)
             game_state->board[dy * BOARD_WIDTH + dx] = game_state->board[dy * BOARD_WIDTH + dx - BOARD_WIDTH];
+
+    game_state->score += 100 + game_state->level * 2;
 }
 
 void restart_game()
 {
+    BASS_ChannelPlay(tangram.music, 1);
     free(game_state);
     init_game_state();
 }
@@ -872,17 +885,30 @@ static void tangram_event_update()
     }
 
     int input_h = (int)key_is_down(SDLK_RIGHT) - (int)key_is_down(SDLK_LEFT);
-
     game_state->dhf = input_h != 0 ? game_state->dhf + 1 : 0;
 
-    if (key_is_up(SDLK_DOWN) && (game_state->dhf == 1 || game_state->dhf >= game_state->das))
-        move_piece(game_state->piece, input_h, 0);
-    if (key_is_pressed(SDLK_z))
-        rotate_piece(game_state->piece, -1);
-    if (key_is_pressed(SDLK_x))
-        rotate_piece(game_state->piece, 1);
-    if (key_is_down_buffered(SDLK_DOWN) || every_n_frames(game_state->ftr))
-        move_piece(game_state->piece, 0, game_state->gravity);
+    if ((game_state->are == 0 || game_state->ticks > game_state->are + ARE_FRAMES) && !game_state->piece->blocks[0].collide)
+    {
+        if (key_is_up(SDLK_DOWN) && (game_state->dhf == 1 || game_state->dhf >= game_state->das))
+            move_piece(game_state->piece, input_h, 0);
+        if (key_is_pressed(SDLK_z))
+            rotate_piece(game_state->piece, -1);
+        if (key_is_pressed(SDLK_x))
+            rotate_piece(game_state->piece, 1);
+        if (key_is_down_buffered(SDLK_DOWN) || every_n_frames(game_state->ftr))
+            move_piece(game_state->piece, 0, game_state->gravity);
+    }
+    else if (game_state->ticks > game_state->are + ARE_FRAMES && game_state->piece->blocks[0].collide && !game_state->game_over)
+    {
+        if (game_state->ftr >= 2 && game_state->ftr % 3 == 0)
+            game_state->ftr--;
+        game_state->piece = new_piece(-1);
+    }
+
+    if (key_is_pressed(SDLK_r) && game_state->game_over)
+    {
+        restart_game();
+    }
 
     // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Δt = %f\n", tangram.clock.dt);
     float t = SDL_GetTicks() * 0.001f;
@@ -891,6 +917,10 @@ static void tangram_event_update()
     int ww, wh;
     SDL_GetWindowSizeInPixels(tangram.window, &ww, &wh);
     glUniform3f(glGetUniformLocation(tangram.gl.program, "iResolution"), (float)ww, (float)wh, 0.f);
+
+    char new_title[48];
+    sprintf(new_title, "%s | Level %d - Score: %d", title, game_state->level, game_state->score);
+    SDL_SetWindowTitle(tangram.window, new_title);
 }
 
 static void tangram_event_render()

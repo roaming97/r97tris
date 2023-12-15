@@ -14,7 +14,7 @@
 ## Nice to have
 
 - [x] [IRS](https://tetris.wiki/Rotate)
-- [ ] [ARE](https://tetris.wiki/ARE)
+- [x] [ARE](https://tetris.wiki/ARE)
 - [ ] [Mihara's conspiracy](https://tetris.wiki/Arika_Rotation_System)
 - [ ] Holding
 - [x] Queueing
@@ -37,4 +37,3 @@
 - [ ] Animation
 - [x] Proper window scaling
 - [ ] Texture image blending
-- [ ] Compile data files with game and load from memory

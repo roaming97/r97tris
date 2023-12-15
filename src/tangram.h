@@ -9,14 +9,15 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
+#ifdef __TINYC__
+#undef main
+#endif
+
 #include <glad/gl.h>
 #include <bass/bass.h>
 #define STBI_NO_SIMD
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
-#ifdef __TINYC__
-#undef main
-#endif
 
 #include "include/mt19937ar.h"
 
@@ -101,7 +102,7 @@ typedef struct TextureMap
 void draw_clear(unsigned int color);
 void draw_pixel(int x, int y, unsigned int color);
 void draw_line(Point from, Point to, unsigned int color);
-void draw_rectangle(int x1, int y1, int x2, int y2, unsigned int color, bool outline);
+void draw_rectangle(Point from, Point to, unsigned int color, bool outline);
 void draw_texture(TangramTexture *texture, Point pos, Point uv, Point size, float scale, unsigned int blend);
 
 typedef struct TangramGL
