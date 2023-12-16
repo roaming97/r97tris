@@ -521,7 +521,32 @@ Piece *new_piece(int idx)
     return p;
 }
 
-bool check_move(Piece *piece, int x, int y)
+unsigned int piece_range(Piece *piece, PieceRange range)
+{
+    unsigned int a = piece->blocks[0].y;
+    unsigned int b = piece->blocks[1].y;
+    for (int i = 0; i < 4; i++)
+    {
+        int px = piece->blocks[i].x;
+        int py = piece->blocks[i].y;
+        if (py < a)
+            a = py;
+        if (py > b)
+            b = py;
+    }
+
+    switch (range)
+    {
+        case HIGHEST_BLOCK:
+            return a;
+        case LOWEST_BLOCK:
+            return b;
+        case FULL_RANGE:
+            return a - b;
+    }
+}
+
+void move_piece(Piece *piece, int x, int y)
 {
     for (int i = 0; i < 4; i++)
     {
@@ -531,28 +556,20 @@ bool check_move(Piece *piece, int x, int y)
         {
             play_sound(SOUND_PIECECOLLIDE, 0.8f);
             lock_piece(piece);
-            return false;
+            return;
         }
         if (
             dx < 0 || dx >= BOARD_WIDTH ||
             game_state->board[dy * BOARD_WIDTH + dx] != PIECE_NONE)
         {
-            return false;
+            return;
         }
     }
-    return true;
-}
-
-void move_piece(Piece *piece, int x, int y)
-{
-    if (check_move(piece, x, y))
+    // Move the entire piece when all blocks pass the check
+    for (int i = 0; i < 4; i++)
     {
-        // Move the entire piece when all blocks pass the check
-        for (int i = 0; i < 4; i++)
-        {
-            piece->blocks[i].x += x;
-            piece->blocks[i].y += y;
-        }
+        piece->blocks[i].x += x;
+        piece->blocks[i].y += y;
     }
 }
 
@@ -646,20 +663,16 @@ void rotate_piece(Piece *piece, int direction)
 
 void lock_piece(Piece *piece)
 {
-    unsigned int y1 = piece->blocks[0].y;
-    unsigned int y2 = piece->blocks[1].y;
     for (int i = 0; i < 4; i++)
     {
         piece->blocks[i].collide = true;
         int px = piece->blocks[i].x;
         int py = piece->blocks[i].y;
-        if (py < y1)
-            y1 = py;
-        if (py > y2)
-            y2 = py;
         game_state->board[py * BOARD_WIDTH + px] = piece->blocks[i].piece;
     }
 
+    unsigned int y1 = piece_range(piece, HIGHEST_BLOCK);
+    unsigned int y2 = piece_range(piece, LOWEST_BLOCK);
     int diff = y2 - y1;
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Checking lines %d to %d", y1, y2);
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Checking %d inside check_lines", diff);
@@ -696,6 +709,7 @@ void check_line(unsigned int y)
             game_state->board[dy * BOARD_WIDTH + dx] = game_state->board[dy * BOARD_WIDTH + dx - BOARD_WIDTH];
 
     game_state->score += 100 + game_state->level * 2;
+    game_state->level++;
 }
 
 void restart_game()
@@ -900,8 +914,8 @@ static void tangram_event_update()
     }
     else if (game_state->ticks > game_state->are + ARE_FRAMES && game_state->piece->blocks[0].collide && !game_state->game_over)
     {
-        if (game_state->ftr >= 2 && game_state->ftr % 3 == 0)
-            game_state->ftr--;
+        if (game_state->ftr >= 4)
+            game_state->ftr = fps - game_state->level * 0.5;
         game_state->piece = new_piece(-1);
     }
 

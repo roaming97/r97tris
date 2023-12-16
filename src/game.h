@@ -1,5 +1,5 @@
-#ifndef TETROMINO_HEADER
-#define TETROMINO_HEADER
+#ifndef GAME_HEADER 
+#define GAME_HEADER
 
 #define QUEUE_SIZE 5
 
@@ -200,11 +200,19 @@ typedef struct Piece
 	Block blocks[4];
 } Piece;
 
+enum PieceRange
+{
+	HIGHEST_BLOCK,
+	LOWEST_BLOCK,
+	FULL_RANGE,
+};
+typedef enum PieceRange PieceRange;
+
 // Create a new tetromino from a piece index.
 // Passing index `-1` creates a random piece and adds it to the queue.
 Piece *new_piece(int idx);
-// Checks if a piece can be moved to an offest.
-bool check_move(Piece *piece, int x, int y);
+// Returns part of or the entire range of a piece in the Y axis.
+unsigned int piece_range(Piece *piece, PieceRange range);
 // Move a tetromino by an offset in x and/or y.
 void move_piece(Piece *piece, int x, int y);
 // Rotate a tetromino in a given direction, `1` is clockwise and `-1` counter-clockwise.
@@ -214,7 +222,7 @@ void lock_piece(Piece *piece);
 // Checks if a line has been cleared.
 void check_line(unsigned int y);
 
-#define DAS_FRAMES 12
+#define DAS_FRAMES 10
 #define ARE_FRAMES 30
 
 typedef struct GameState
