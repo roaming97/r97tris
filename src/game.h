@@ -185,7 +185,7 @@ typedef enum Rotation Rotation;
 
 typedef struct Block
 {
-	unsigned short collide : 1;
+	unsigned short unused : 1;
 	unsigned short piece : 3;
 	unsigned short rotation : 2;
 	unsigned short y : 5;
@@ -198,6 +198,8 @@ Block new_block(unsigned short data);
 typedef struct Piece
 {
 	Block blocks[4];
+	bool coll;
+	bool locked;
 } Piece;
 
 enum PieceRange
@@ -222,8 +224,9 @@ void lock_piece(Piece *piece);
 // Checks if a line has been cleared.
 void check_line(unsigned int y);
 
-#define DAS_FRAMES 10
+#define DAS_FRAMES 16
 #define ARE_FRAMES 30
+#define LOCK_DELAY 30
 
 typedef struct GameState
 {
@@ -239,6 +242,7 @@ typedef struct GameState
 	unsigned int dhf; // direction hold frames
 	unsigned int das; // Delayed Auto Shift, frames before autorepeat
 	unsigned int are; // spawn delay, ticks are copied into this variable so it can be compared against `ARE_FRAMES` 
+	unsigned int lockticks;  // lock delay, ticks are copied into this variable so it can be compared against `LOCK_DELAY`
 	bool game_over;
 } GameState;
 

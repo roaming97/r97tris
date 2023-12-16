@@ -9,7 +9,7 @@
 - [ ] Wall kicks
 - [x] Line checking
 - [x] [DAS](https://tetris.wiki/DAS)
-- [ ] [Lock delay](https://tetris.wiki/Lock_delay)
+- [x] [Lock delay](https://tetris.wiki/Lock_delay)
 
 ### Nice to have
 - [x] [IRS](https://tetris.wiki/Rotate)

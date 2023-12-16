@@ -284,6 +284,7 @@ void init_game_state()
     game_state->score = 0;
     game_state->das = DAS_FRAMES;
     game_state->are = game_state->ticks;
+    game_state->lockticks = game_state->ticks;
 }
 
 bool every_n_frames(unsigned int frames)
@@ -301,13 +302,11 @@ void draw_board()
         (Point){X_OFFSET + BOARD_WIDTH * CELL_SIZE, Y_OFFSET + BOARD_HEIGHT * CELL_SIZE},
         0, false);
     // Draw piece
-    if (game_state->piece != NULL)
+    if (game_state->piece != NULL && !game_state->piece->locked)
     {
         Piece *p = game_state->piece;
         for (int b = 0; b < 4; b++)
         {
-            if (p->blocks[b].collide)
-                break;
             unsigned int bx = p->blocks[b].x;
             unsigned int by = p->blocks[b].y;
             unsigned int color = PIECE_COLORS[p->blocks[b].piece];
@@ -415,7 +414,7 @@ void draw_board()
 Block new_block(unsigned short data)
 {
     Block b;
-    b.collide = data >> 15;
+    b.unused = data >> 15;
     b.piece = (data & 0x7000) >> 12;
     b.rotation = (data & 0xC00) >> 10;
     b.y = (data & 0x1F0) >> 5;
@@ -427,6 +426,8 @@ Piece *new_piece(int idx)
 {
     Piece *p;
     p = malloc(sizeof(Piece));
+    p->locked = 0;
+    p->coll = 0;
 
     PieceIndex index = idx;
     int initial_dir = 0;
@@ -527,7 +528,6 @@ unsigned int piece_range(Piece *piece, PieceRange range)
     unsigned int b = piece->blocks[1].y;
     for (int i = 0; i < 4; i++)
     {
-        int px = piece->blocks[i].x;
         int py = piece->blocks[i].y;
         if (py < a)
             a = py;
@@ -537,12 +537,12 @@ unsigned int piece_range(Piece *piece, PieceRange range)
 
     switch (range)
     {
-        case HIGHEST_BLOCK:
-            return a;
-        case LOWEST_BLOCK:
-            return b;
-        case FULL_RANGE:
-            return a - b;
+    case HIGHEST_BLOCK:
+        return a;
+    case LOWEST_BLOCK:
+        return b;
+    case FULL_RANGE:
+        return a - b;
     }
 }
 
@@ -554,22 +554,41 @@ void move_piece(Piece *piece, int x, int y)
         int dy = piece->blocks[i].y + y;
         if (dy >= BOARD_HEIGHT || (game_state->board[dy * BOARD_WIDTH + dx] != PIECE_NONE && x == 0))
         {
-            play_sound(SOUND_PIECECOLLIDE, 0.8f);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Skipping lock delay...");
+            play_sound(SOUND_PIECECOLLIDE, 0.9f);
             lock_piece(piece);
             return;
         }
         if (
             dx < 0 || dx >= BOARD_WIDTH ||
             game_state->board[dy * BOARD_WIDTH + dx] != PIECE_NONE)
-        {
             return;
-        }
     }
+
     // Move the entire piece when all blocks pass the check
     for (int i = 0; i < 4; i++)
     {
         piece->blocks[i].x += x;
         piece->blocks[i].y += y;
+    }
+
+    unsigned int ly = piece_range(piece, LOWEST_BLOCK);
+    for (int i = 0; i < 4; i++)
+    {
+        if (piece->blocks[i].y == ly)
+        {
+            unsigned int cell = game_state->board[(piece->blocks[i].y + 1) * BOARD_WIDTH + piece->blocks[i].x];
+            if (cell != PIECE_NONE && !piece->coll)
+            {
+                piece->coll = true;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Piece is locked now! Waiting for lock delay to run out...");
+                play_sound(SOUND_PIECECOLLIDE, 0.9f);
+                game_state->lockticks = game_state->ticks;
+            }
+            if (cell == PIECE_NONE && piece->coll)
+                piece->coll = false;
+            break;
+        }
     }
 }
 
@@ -663,17 +682,17 @@ void rotate_piece(Piece *piece, int direction)
 
 void lock_piece(Piece *piece)
 {
+    piece->locked = true;
     for (int i = 0; i < 4; i++)
     {
-        piece->blocks[i].collide = true;
         int px = piece->blocks[i].x;
         int py = piece->blocks[i].y;
         game_state->board[py * BOARD_WIDTH + px] = piece->blocks[i].piece;
     }
-
+    play_sound(SOUND_PIECELOCK, 1.0f);
     unsigned int y1 = piece_range(piece, HIGHEST_BLOCK);
     unsigned int y2 = piece_range(piece, LOWEST_BLOCK);
-    int diff = y2 - y1;
+    int diff = y2 - y1 + 1;
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Checking lines %d to %d", y1, y2);
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Checking %d inside check_lines", diff);
 
@@ -901,7 +920,7 @@ static void tangram_event_update()
     int input_h = (int)key_is_down(SDLK_RIGHT) - (int)key_is_down(SDLK_LEFT);
     game_state->dhf = input_h != 0 ? game_state->dhf + 1 : 0;
 
-    if ((game_state->are == 0 || game_state->ticks > game_state->are + ARE_FRAMES) && !game_state->piece->blocks[0].collide)
+    if (game_state->are == 0 || game_state->ticks > game_state->are + ARE_FRAMES && !game_state->piece->locked)
     {
         if (key_is_up(SDLK_DOWN) && (game_state->dhf == 1 || game_state->dhf >= game_state->das))
             move_piece(game_state->piece, input_h, 0);
@@ -910,9 +929,20 @@ static void tangram_event_update()
         if (key_is_pressed(SDLK_x))
             rotate_piece(game_state->piece, 1);
         if (key_is_down_buffered(SDLK_DOWN) || every_n_frames(game_state->ftr))
-            move_piece(game_state->piece, 0, game_state->gravity);
+        {
+            if (!game_state->piece->coll)
+                move_piece(game_state->piece, 0, game_state->gravity);
+            else
+                lock_piece(game_state->piece);
+        }
+
+        if (!game_state->piece->locked && game_state->piece->coll && game_state->ticks > game_state->lockticks + LOCK_DELAY)
+            lock_piece(game_state->piece);
     }
-    else if (game_state->ticks > game_state->are + ARE_FRAMES && game_state->piece->blocks[0].collide && !game_state->game_over)
+    else if (
+        game_state->ticks > game_state->are + ARE_FRAMES &&
+        game_state->piece->locked &&
+        !game_state->game_over)
     {
         if (game_state->ftr >= 4)
             game_state->ftr = fps - game_state->level * 0.5;
