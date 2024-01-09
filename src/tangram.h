@@ -12,7 +12,6 @@
 #ifdef __TINYC__
 #undef main
 #endif
-
 #include <glad/gl.h>
 #include <bass/bass.h>
 #define STBI_NO_SIMD
@@ -24,7 +23,6 @@
 // Engine macros
 
 #define RGB_TO_BGR(c) ((c & 0xFF) << 16) | (c & 0xFF00) | ((c & 0xFF0000) >> 16)
-#define ARGB_TO_ABGR(c) ((c & 0xFF) << 24) | ((c & 0xFF00) << 8) | ((c & 0xFF0000) >> 8) | ((c & 0xFF000000) >> 24)
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #define sign(x) ((x < 0) ? -1 : 1)

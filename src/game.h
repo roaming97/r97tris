@@ -224,7 +224,7 @@ void lock_piece(Piece *piece);
 // Checks if a line has been cleared.
 void check_line(unsigned int y);
 
-#define DAS_FRAMES 16
+#define DAS_FRAMES 12
 #define ARE_FRAMES 30
 #define LOCK_DELAY 30
 

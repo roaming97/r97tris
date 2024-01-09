@@ -9,4 +9,5 @@ if %errorlevel% == 0 (
     .\tetris.exe
 ) else (
     echo Error compiling game!
+    pause
 )

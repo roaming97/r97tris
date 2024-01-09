@@ -152,6 +152,13 @@ void draw_texture(TangramTexture *texture, Point pos, Point uv, Point size, floa
 {
     // the image will pretend to have 3 channels but all textures are loaded with 4
     int channels = 4;
+
+    // Extract blend color channels
+    unsigned char blend_r = (blend >> 16) & 0xFF;
+    unsigned char blend_g = (blend >> 8) & 0xFF;
+    unsigned char blend_b = blend & 0xFF;
+    float factor = ((blend >> 24) & 0xFF) / 255.0f; // Extract alpha as a blend factor
+
     for (int tx = 0; tx < size.x; tx++)
         for (int ty = 0; ty < size.y; ty++)
         {
@@ -164,13 +171,7 @@ void draw_texture(TangramTexture *texture, Point pos, Point uv, Point size, floa
             unsigned char b = texture->data[pixel + 2];
             unsigned char a = texture->data[pixel + 3];
 
-            // Extract blend color channels
-            unsigned char blend_r = (blend >> 16) & 0xFF;
-            unsigned char blend_g = (blend >> 8) & 0xFF;
-            unsigned char blend_b = blend & 0xFF;
-
             // Apply blending to the color
-            float factor = ((blend >> 24) & 0xFF) / 255.0f; // Extract alpha as a blend factor
             r = (unsigned char)(r * (1.0f - factor) + blend_r * factor);
             g = (unsigned char)(g * (1.0f - factor) + blend_g * factor);
             b = (unsigned char)(b * (1.0f - factor) + blend_b * factor);
@@ -181,7 +182,7 @@ void draw_texture(TangramTexture *texture, Point pos, Point uv, Point size, floa
             color |= b;
 
             draw_pixel(pos.x + tx, pos.y + ty, color);
-        }
+    }
 }
 
 HSTREAM new_sound(const char *filename)
@@ -871,7 +872,7 @@ static int tangram_event_setup()
 
     init_sounds();
 
-    tangram.music = BASS_MusicLoad(0, "data/music/_te-x-mas_6_.mod", 0, 0, BASS_SAMPLE_LOOP | BASS_MUSIC_NONINTER, 0);
+    tangram.music = BASS_MusicLoad(0, "data/music/molrevenge.mod", 0, 0, BASS_SAMPLE_LOOP | BASS_MUSIC_NONINTER, 0);
     if (!tangram.music)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load music: %d\n", BASS_ErrorGetCode());
@@ -881,9 +882,6 @@ static int tangram_event_setup()
     init_genrand(SDL_GetTicks() + rand());
     init_clock(&tangram.clock);
     init_game_state();
-
-    if (!BASS_Start())
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "BASS could not start! (Error code %d)", BASS_ErrorGetCode());
 
     BASS_ChannelSetAttribute(tangram.music, BASS_ATTRIB_VOL, 0.7f);
     BASS_ChannelPlay(tangram.music, 1);
@@ -928,7 +926,7 @@ static void tangram_event_update()
             rotate_piece(game_state->piece, -1);
         if (key_is_pressed(SDLK_x))
             rotate_piece(game_state->piece, 1);
-        if (key_is_down_buffered(SDLK_DOWN) || every_n_frames(game_state->ftr))
+        if (key_is_down_buffered(SDLK_DOWN) || (every_n_frames(game_state->ftr) && !game_state->piece->coll))
         {
             if (!game_state->piece->coll)
                 move_piece(game_state->piece, 0, game_state->gravity);
@@ -944,8 +942,8 @@ static void tangram_event_update()
         game_state->piece->locked &&
         !game_state->game_over)
     {
-        if (game_state->ftr >= 4)
-            game_state->ftr = fps - game_state->level * 0.5;
+        if (game_state->ftr > 4)
+            game_state->ftr = fps - game_state->level * 0.25;
         game_state->piece = new_piece(-1);
     }
 
@@ -954,7 +952,7 @@ static void tangram_event_update()
         restart_game();
     }
 
-    // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Δt = %f\n", tangram.clock.dt);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Δt = %f (%.2f/%u fps)\n", tangram.clock.dt, (float)fps / (tangram.clock.dt * (float)fps), fps);
     float t = SDL_GetTicks() * 0.001f;
     glUniform1f(glGetUniformLocation(tangram.gl.program, "iTime"), t);
 
