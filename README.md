@@ -4,9 +4,22 @@ A tetris clone developed by roaming97 taking elements from the [Tetris: The Gran
 
 ![r97tris screenshot](image.png)
 
-**Warning**: This game's development is still in progress, so expect a lot of bugs and [unimplemented features](TODO.md) if you wish to play it at this point in time!
+> [!WARNING]
+> This game's development is still in progress, so expect a lot of bugs and [unimplemented features](TODO.md) if you wish to play it at this point in time!
 
-I excluded the `data` folder from this repository for copyright resons, you will need to find assets to use in your own copy of the game or else the game won't load correctly, the assets the game uses here are:
+## Controls
+```
+Move piece                 - Arrow keys
+Counterclockwise rotation  -      Z key
+Clockwise rotation         -      X key
+Restart game               -      R key
+
+Restarting only works when the game has ended.
+```
+## Assets
+
+> [!IMPORTANT]
+> I excluded the `data` folder from this repository for copyright resons, you will need to find assets to use in your own copy of the game or else the game won't load correctly, the assets the game uses hereare:
 
 ### Textures
 Loads from `data/img`
@@ -38,14 +51,16 @@ Loads from `data/sfx`
 
 ### Python
 
-This project requires at least Python **3.6**.
+> [!IMPORTANT]
+> This project requires at least Python **3.6**.
 
 If you want to change the look of the game via the shaders (in the `shaders` folder), you must make sure that the Python script works since the shaders must be compiled into the game before compiling the game itself.
 
-**(OPTIONAL)** Create a virtual environment then activate it:
-```
-$ python3 -m venv venv
-```
+> [!TIP]
+> Create a virtual environment then activate it:
+> ```
+> $ python3 -m venv venv
+> ```
 
 Activate on **Unix**
 ```
@@ -79,4 +94,4 @@ I compiled this game using TCC using the [build.bat](build.bat) script, but if y
 
 If you are on Windows, be sure to include `bass.dll` and `SDL2.dll` alongside the game's executable.
 
-TODO: For now the script will compile an EXE for Windows. I should probably write a Makefile later to compile to different targets.
+TODO: For now the script will compile an EXE for Windows. Multitarget Makefile is still pending.
